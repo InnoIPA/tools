@@ -8,7 +8,7 @@ script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
 
 usage() {
   cat <<EOF
-${BASH_SOURCE[0]} ${version}
+$(basename "${BASH_SOURCE[0]}") ${version}
 Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-v] [-s] [--config-server arg1 [arg2...]]
 Example: ./setup-ntp-server.sh -s --config-server "server 0.asia.pool.ntp.org" "server 1.asia.pool.ntp.org"
 
