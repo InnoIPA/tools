@@ -88,11 +88,9 @@ goto :init
 
 :end
     call :cleanup
-    pause
     exit /B
 
 :restore_windows_time_service
-    echo restore_windows_time_service
     net stop w32time
     w32tm /unregister
     w32tm /register
@@ -101,7 +99,6 @@ goto :init
     goto :eof
 
 :config_ntp_server
-    echo config_ntp_server
     w32tm /config /manualpeerlist:"%RemoteServer%" /syncfromflags:manual /reliable:yes /update
     
     goto :eof
