@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 trap cleanup SIGINT SIGTERM ERR EXIT
 
-version="1.0.0"
+version="1.0.1"
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
 
 usage() {
@@ -80,6 +80,40 @@ parse_params() {
   return 0
 }
 
+# Get current Ubuntu OS version
+get_ubuntu_version() 
+{
+    if [ ! -f /etc/os-release ]; then
+        die "${ORANGE}Cannot find /etc/os-release file${NOFORMAT}"
+        return 1
+    fi
+    # Get the current OS version.
+    . /etc/os-release
+
+    # Convert version string to number from $VERSION_ID in /etc/os-release
+    # Example: VERSION_ID="18.04" => 1804
+    sed 's/\.//' <<<"$VERSION_ID"
+}
+
+# Format ntp server address to new format.
+format_ntp_server_address()
+{
+    local ntp_server_address="$1"
+    local os_version="$2"
+    
+    # If the current os version is greater than 1804, use the new format ntp address
+    # Example output: pool time.stdtime.gov.tw iburst
+    if [ "$os_version" -ge 1804 ]; then
+        if [[ $ntp_server_address != server* ]] && [[ $ntp_server_address != pool* ]]; then
+            ntp_server_address="pool ${ntp_server_address}"
+        fi
+        if [[ $ntp_server_address != *iburst ]]; then
+            ntp_server_address="${ntp_server_address} iburst"
+        fi
+    fi
+    echo "$ntp_server_address"
+}
+
 install_ntp_service()
 {
   sudo apt-get install -y ntp
@@ -89,6 +123,10 @@ config_ntp_server()
 {
   file=/etc/ntp.conf
   file_backup=/etc/ntp_backup.conf
+  local os_version
+
+  # Get current OS version
+  os_version=$(get_ubuntu_version)
 
   if [ -f "${file_backup}" ]; then
     sudo cp "${file_backup}" "${file}"
@@ -98,11 +136,14 @@ config_ntp_server()
 
   cmd="/# more information./a "
   for ELEMENT in "${args[@]-}"; do
-    cmd+="${ELEMENT}\n"
+    formatted_server_str=$(format_ntp_server_address "$ELEMENT" "$os_version")
+    cmd+="${formatted_server_str}\n"
   done
   
-  sudo sed -i '/pool/d' "${file}"
+  sudo sed -i '/^[[:space:]]*\(server\|pool\)/d' "${file}"
   sudo sed -i "${cmd}" "${file}"
+
+  msg "${GREEN}NTP configuration file updated.${NOFORMAT}"
 }
 
 restart_ntp_service()
